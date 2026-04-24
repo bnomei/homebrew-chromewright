@@ -10,17 +10,17 @@ brew install bnomei/chromewright/chromewright
 
 ## Maintain
 
-The formula currently builds from a pinned GitHub commit archive because
-`bnomei/chromewright` does not publish GitHub tags/releases yet.
+The formula installs prebuilt GitHub Release archives for macOS and Linux.
+Windows release archives are not used by Homebrew.
 
-To refresh the checksum for the current pinned commit:
+To refresh checksums for the current formula version:
 
 ```bash
 scripts/update-sha256.sh
 ```
 
-To bump to a different commit and optionally a new version:
+To bump to a different release version:
 
 ```bash
-scripts/update-sha256.sh <commit> [version]
+scripts/update-sha256.sh <version>
 ```

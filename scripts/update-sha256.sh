@@ -4,15 +4,7 @@ set -euo pipefail
 repo="bnomei/chromewright"
 formula="Formula/chromewright.rb"
 
-commit="${1:-}"
-version="${2:-}"
-
-if [[ -z "${commit}" ]]; then
-  commit="$(
-    ruby -ne 'if $_ =~ %r{url\s+"https://github.com/bnomei/chromewright/archive/([0-9a-f]{40})\.tar\.gz"}; puts $1; exit; end' \
-      "$formula"
-  )"
-fi
+version="${1:-}"
 
 if [[ -z "${version}" ]]; then
   version="$(
@@ -21,52 +13,68 @@ if [[ -z "${version}" ]]; then
   )"
 fi
 
-if [[ -z "${commit}" ]]; then
-  echo "Failed to determine commit from ${formula}." >&2
-  exit 1
-fi
-
 if [[ -z "${version}" ]]; then
   echo "Failed to determine version from ${formula}." >&2
   exit 1
 fi
 
-url="https://github.com/${repo}/archive/${commit}.tar.gz"
-
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
-archive="${workdir}/chromewright-${commit}.tar.gz"
+keys=(
+  aarch64_apple_darwin
+  x86_64_apple_darwin
+  aarch64_unknown_linux_musl
+  x86_64_unknown_linux_musl
+)
 
-echo "Downloading ${url}"
-curl -fsSL "${url}" -o "${archive}"
+asset_for_key() {
+  case "$1" in
+    aarch64_apple_darwin) printf "chromewright-v%s-aarch64-apple-darwin.tar.gz.sha256" "$version" ;;
+    x86_64_apple_darwin) printf "chromewright-v%s-x86_64-apple-darwin.tar.gz.sha256" "$version" ;;
+    aarch64_unknown_linux_musl) printf "chromewright-v%s-aarch64-unknown-linux-musl.tar.gz.sha256" "$version" ;;
+    x86_64_unknown_linux_musl) printf "chromewright-v%s-x86_64-unknown-linux-musl.tar.gz.sha256" "$version" ;;
+    *) return 1 ;;
+  esac
+}
 
-if command -v shasum >/dev/null 2>&1; then
-  sha256="$(shasum -a 256 "${archive}" | awk '{print $1}')"
-elif command -v sha256sum >/dev/null 2>&1; then
-  sha256="$(sha256sum "${archive}" | awk '{print $1}')"
-else
-  echo "Missing shasum/sha256sum to compute checksums." >&2
-  exit 1
-fi
+args=()
+for key in "${keys[@]}"; do
+  asset="$(asset_for_key "$key")"
+  url="https://github.com/${repo}/releases/download/v${version}/${asset}"
+  checksum_file="${workdir}/${asset}"
 
-python3 - "${formula}" "${version}" "${commit}" "${sha256}" <<'PY'
+  echo "Downloading ${url}"
+  curl -fsSL "${url}" -o "${checksum_file}"
+
+  sha256="$(awk '{print tolower($1)}' "${checksum_file}")"
+  if [[ ! "${sha256}" =~ ^[a-f0-9]{64}$ ]]; then
+    echo "Invalid SHA-256 in ${asset}: ${sha256}" >&2
+    exit 1
+  fi
+
+  args+=("${key}" "${sha256}")
+done
+
+python3 - "${formula}" "${version}" "${args[@]}" <<'PY'
 import re
 import sys
 
-formula, version, commit, sha256 = sys.argv[1:5]
+formula = sys.argv[1]
+version = sys.argv[2]
+pairs = sys.argv[3:]
+checksums = dict(zip(pairs[0::2], pairs[1::2]))
 
 with open(formula, "r", encoding="utf-8") as f:
     text = f.read()
 
 text = re.sub(r'^\s*version\s+"[^"]+"$', f'  version "{version}"', text, flags=re.MULTILINE)
-text = re.sub(
-    r'^\s*url\s+"https://github.com/bnomei/chromewright/archive/[0-9a-f]{40}\.tar\.gz"$',
-    f'  url "https://github.com/bnomei/chromewright/archive/{commit}.tar.gz"',
-    text,
-    flags=re.MULTILINE,
-)
-text = re.sub(r'^\s*sha256\s+"[a-f0-9]{64}"$', f'  sha256 "{sha256}"', text, flags=re.MULTILINE)
+
+for key, sha256 in checksums.items():
+    pattern = rf'({re.escape(key)}:\s*")[a-f0-9]{{64}}(")'
+    text, count = re.subn(pattern, rf'\g<1>{sha256}\2', text, count=1)
+    if count != 1:
+        raise SystemExit(f"Failed to update checksum key: {key}")
 
 with open(formula, "w", encoding="utf-8") as f:
     f.write(text)
@@ -74,5 +82,3 @@ PY
 
 printf "Updated %s\n" "${formula}"
 printf "Version: %s\n" "${version}"
-printf "Commit: %s\n" "${commit}"
-printf "SHA-256: %s\n" "${sha256}"
