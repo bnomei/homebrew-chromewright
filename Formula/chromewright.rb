@@ -1,14 +1,14 @@
 class Chromewright < Formula
   desc "Browser automation MCP server via Chrome DevTools Protocol"
   homepage "https://github.com/bnomei/chromewright"
-  version "0.5.0"
+  version "0.7.0"
   license "MIT"
 
   checksums = {
-    aarch64_apple_darwin:       "f862575018006b47b16598b35a4faf0e743749c6c61647a3e8e312169bce59da",
-    x86_64_apple_darwin:        "15d2637eb7cf54e5aac188e59f5f3bbb2d36f6ad621b488ae33fd62675c13830",
-    aarch64_unknown_linux_musl: "554e4da3cb248beb452d94cb86f60ae822ba9ea00f53e478ce58b759b326d5a6",
-    x86_64_unknown_linux_musl:  "6de7f4b1d7c32f1f8492299eb85047150f033a92f5f6c8e81555e0b00ad070e7",
+    aarch64_apple_darwin:       "cb43303829d0980eebe55ddadb53209dd6c681ad9754d8a2418e0834db006cb5",
+    x86_64_apple_darwin:        "dc7567cdc099ac1f2b168255657a5b33ad44f50926372c129ff2394c6cd49134",
+    aarch64_unknown_linux_musl: "05073ad0b8b17c2c51721facc449c4135ac1efbb089c05a360ea68127fe7a982",
+    x86_64_unknown_linux_musl:  "fb4e2aeb582adb4cc83dee196cb04eb4847003ac5267b27593b434ab5b3b72c7",
   }
 
   on_macos do
